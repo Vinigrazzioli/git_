@@ -4198,7 +4198,235 @@ print("="*60)
 
 # COMMAND ----------
 
-await executar_sistema_inteligente_corrigido()
+# COMMAND ----------
+
+# ========== CORREÇÃO: DORES DIRETAS E SIMPLES ==========
+
+print("🎯 Corrigindo sistema para gerar dores DIRETAS...")
+
+# PROBLEMA 1: Prompts muito verbosos - SIMPLIFICAR
+def create_simple_extraction_prompt():
+    """Prompt SIMPLES e DIRETO para extração"""
+    
+    return """Você é um especialista em identificar problemas diretos de clientes bancários do Sicredi.
+
+## REGRAS FUNDAMENTAIS:
+✅ Extraia apenas PROBLEMAS REAIS mencionados
+✅ Use linguagem SIMPLES e DIRETA
+✅ Terceira pessoa: "Cliente não consegue...", "Falta de...", "Dificuldade para..."
+✅ REMOVA valores específicos, nomes, datas
+✅ Máximo 50 palavras por dor
+✅ Se não há problema claro, retorne lista VAZIA
+
+## EXEMPLOS DE EXTRAÇÃO CORRETA:
+
+**Feedback:** "Não consigo fazer PIX no app, sempre dá erro quando tento transferir R$ 1.000"
+**Dor Extraída:** "Cliente não consegue realizar PIX pelo aplicativo devido a erros"
+
+**Feedback:** "Taxa de 15% ao mês no cartão está muito alta, no Bradesco era 8%"
+**Dor Extraída:** "Taxa do cartão de crédito considerada alta"
+
+**Feedback:** "App muito lento, demora 5 minutos para abrir"
+**Dor Extraída:** "Aplicativo apresenta lentidão para abertura"
+
+**Feedback:** "Atendimento excelente, recomendo o banco!"
+**Dor Extraída:** NENHUMA (só elogio)
+
+## CATEGORIAS SIMPLES:
+- TECNOLOGIA: Problemas técnicos/Travamentos/Sistema offline
+- EXPERIENCIA: Usabilidade difícil/Interface não intuitiva/Funcionalidade não existente/Funcionalidade incompleta
+- NEGOCIO: Taxas/limites/condições ruins
+- COMUNICACAO: Falta informação/clareza/notificação
+- ATENDIMENTO: Problemas com pessoas
+- MARCA: Confiança/imagem
+
+Extraia apenas dores CLARAS e DIRETAS. Seja objetivo."""
+
+def create_simple_consolidation_prompt():
+    """Prompt SIMPLES para consolidação"""
+    
+    return """Você consolida dores de clientes bancários de forma SIMPLES.
+
+## OBJETIVO: Criar texto DIRETO de máximo 40 palavras
+
+## REGRAS:
+✅ Use linguagem SIMPLES
+✅ Terceira pessoa genérica
+✅ REMOVA valores, percentuais, nomes específicos
+✅ Foque na ESSÊNCIA do problema
+✅ Máximo 40 palavras
+
+## EXEMPLOS:
+
+**ANTES:** "Cliente relatou que as taxas de juros de 15% ao mês são superiores às do Bradesco de 8%"
+**DEPOIS:** "Taxa de juros do cartão considerada alta"
+
+**ANTES:** "Aplicativo demora aproximadamente 5 minutos para carregar na tela inicial"
+**DEPOIS:** "Aplicativo apresenta lentidão para carregar"
+
+**ANTES:** "Redução do limite de R$ 30.000 para R$ 9.000 causou impacto negativo"
+**DEPOIS:** "Redução não comunicada do limite de crédito"
+
+Consolide de forma DIRETA e SIMPLES."""
+
+# APLICAR AS CORREÇÕES
+def aplicar_correcoes_dores_diretas():
+    """Aplica correções para dores diretas"""
+    
+    try:
+        # 1. CORRIGIR prompt de extração
+        sistema_inteligente.core_system.prompt_manager._simple_extraction_prompt = create_simple_extraction_prompt()
+        
+        # 2. CORRIGIR prompt de consolidação
+        sistema_inteligente.core_system.prompt_manager._simple_consolidation_prompt = create_simple_consolidation_prompt()
+        
+        # 3. SUBSTITUIR método de consolidação inteligente
+        async def _intelligent_consolidation_simple(self, canonical_pain: Dict, execution_id: str):
+            """Consolidação SIMPLES que gera dores diretas"""
+            
+            try:
+                current_text = canonical_pain["canonical_text"]
+                variants = canonical_pain.get("variants", [])
+                
+                if not variants or len(variants) < 2:
+                    return  # Não consolida se tem poucas variantes
+                
+                # Preparar contexto SIMPLES
+                all_texts = [current_text] + variants[-3:]  # Últimas 3 apenas
+                categoria = canonical_pain["categoria"]
+                
+                schema = {
+                    "type": "object",
+                    "properties": {
+                        "should_improve": {"type": "boolean"},
+                        "improved_text": {"type": "string"},
+                        "reasoning": {"type": "string"}
+                    }
+                }
+                
+                prompt = f"""Simplifique esta dor canônica:
+
+CATEGORIA: {categoria}
+TEXTO ATUAL: "{current_text}"
+VARIANTES: {[f'"{v}"' for v in variants[-15:]]}
+
+Crie um texto SIMPLES e DIRETO de máximo 40 palavras que:
+- Use terceira pessoa genérica
+- Remova valores específicos, percentuais, nomes
+- Foque na essência do problema
+- Seja claro e objetivo
+
+EXEMPLO:
+Ruim: "As taxas de juros de 15% são superiores às do concorrente de 8%"
+Bom: "Taxa de juros considerada alta"
+
+Só melhore se conseguir ficar mais SIMPLES e DIRETO."""
+
+                if self.llm_manager.get_llm_client():
+                    response = self.llm_manager.get_llm_client().chat.completions.create(
+                        model=config.MODELO_GPT,
+                        messages=[
+                            {"role": "system", "content": "Você simplifica dores para serem diretas e objetivas."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        tools=[{
+                            "type": "function",
+                            "function": {
+                                "name": "simplificar_dor",
+                                "description": "Simplifica dor canônica",
+                                "parameters": schema
+                            }
+                        }],
+                        tool_choice={"type": "function", "function": {"name": "simplificar_dor"}}
+                    )
+                    
+                    if response.choices[0].message.tool_calls:
+                        result = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
+                        
+                        if result.get("should_improve", False):
+                            improved_text = result.get("improved_text", "").strip()
+                            
+                            # Validar que ficou mais simples
+                            if improved_text and len(improved_text) <= 200 and len(improved_text.split()) <= 40:
+                                
+                                # Salvar texto anterior
+                                if current_text not in canonical_pain.get("variants", []):
+                                    canonical_pain.setdefault("variants", []).append(current_text)
+                                
+                                canonical_pain["canonical_text"] = improved_text
+                                canonical_pain["consolidation_count"] = canonical_pain.get("consolidation_count", 0) + 1
+                                canonical_pain["last_consolidation"] = execution_id
+                                canonical_pain["simplification_applied"] = True
+                                
+                                self.global_metrics["quality_improvements"] += 1
+                                
+                                self.logger.info(f"🎯 SIMPLIFICADA: '{current_text[:30]}...' → '{improved_text[:30]}...'")
+                                self.logger.info(f"   Palavras: {len(current_text.split())} → {len(improved_text.split())}")
+                            else:
+                                self.logger.info(f"Simplificação rejeitada: texto não atende critérios")
+                        else:
+                            self.logger.info(f"Texto já adequadamente simples")
+                            
+            except Exception as e:
+                self.logger.error(f"Erro na simplificação: {e}")
+        
+        # Substituir método
+        sistema_inteligente.core_system.global_repository._intelligent_consolidation = \
+            _intelligent_consolidation_simple.__get__(
+                sistema_inteligente.core_system.global_repository,
+                sistema_inteligente.core_system.global_repository.__class__
+            )
+        
+        # 4. CORRIGIR prompt de extração no prompt manager
+        def build_simple_extraction_prompt_advanced(self):
+            return create_simple_extraction_prompt()
+        
+        sistema_inteligente.core_system.prompt_manager.build_extraction_prompt_advanced = \
+            build_simple_extraction_prompt_advanced.__get__(
+                sistema_inteligente.core_system.prompt_manager,
+                sistema_inteligente.core_system.prompt_manager.__class__
+            )
+        
+        print("✅ Prompts corrigidos para dores DIRETAS")
+        print("✅ Consolidação simplificada aplicada")
+        print("✅ Máximo 40 palavras por dor")
+        print("✅ Remoção de valores específicos")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro ao aplicar correções: {e}")
+        return False
+
+# APLICAR TODAS AS CORREÇÕES
+print("🎯 Aplicando correções para dores DIRETAS e SIMPLES...")
+
+sucesso = aplicar_correcoes_dores_diretas()
+
+if sucesso:
+    print("\n🎉 CORREÇÕES APLICADAS COM SUCESSO!")
+    print("\n📋 ANTES vs DEPOIS:")
+    print("❌ ANTES: 'Este texto canônico destaca que as taxas de juros para pessoas físicas são significativamente superiores às praticadas para fazendeiros...'")
+    print("✅ DEPOIS: 'Taxa de juros para pessoas físicas considerada alta'")
+    print("\n🎯 CARACTERÍSTICAS DAS NOVAS DORES:")
+    print("   ✅ Máximo 40 palavras")
+    print("   ✅ Linguagem direta e simples")
+    print("   ✅ Sem valores específicos")
+    print("   ✅ Terceira pessoa genérica")
+    print("   ✅ Foco na essência do problema")
+    print("\n🚀 Execute novamente: await executar_sistema_inteligente_corrigido()")
+else:
+    print("\n⚠️ Erro nas correções - verificar logs")
+
+print("\n" + "="*60)
+print("🎯 SISTEMA CONFIGURADO PARA DORES DIRETAS!")
+print("📝 Exemplo esperado: 'Cliente não consegue fazer PIX no aplicativo'")
+print("🚫 NÃO mais: 'Texto extenso com valores específicos...'")
+print("="*60)
+
+# COMMAND ----------
+
+df_resultado = await executar_sistema_inteligente_corrigido()
 
 # COMMAND ----------
 
